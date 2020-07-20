@@ -31,7 +31,6 @@
 
 #include <stdio.h>
 #include <elog.h>
-#include <elog_file_cfg.h>
 
 #ifdef __cplusplus
 extern "C" {

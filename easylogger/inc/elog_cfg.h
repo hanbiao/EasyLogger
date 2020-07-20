@@ -29,12 +29,16 @@
 #ifndef _ELOG_CFG_H_
 #define _ELOG_CFG_H_
 /*---------------------------------------------------------------------------*/
+//控制Elog.h头文件中的API接口
 /* enable log output. */
 #define ELOG_OUTPUT_ENABLE
 /* setting static output log level. range: from ELOG_LVL_ASSERT to ELOG_LVL_VERBOSE */
 #define ELOG_OUTPUT_LVL                          ELOG_LVL_VERBOSE
 /* enable assert check */
 #define ELOG_ASSERT_ENABLE
+
+
+//配置Elog.c用到的宏定义
 /* buffer size for every line's log */
 #define ELOG_LINE_BUF_SIZE                       1024
 /* output line number max length */
@@ -59,7 +63,7 @@
 #define ELOG_COLOR_VERBOSE                       (F_BLUE B_NULL S_NORMAL)
 /*---------------------------------------------------------------------------*/
 /* enable asynchronous output mode */
-#define ELOG_ASYNC_OUTPUT_ENABLE
+//#define ELOG_ASYNC_OUTPUT_ENABLE     //异步输出,适用于OS系统
 /* the highest output level for async mode, other level will sync output */
 #define ELOG_ASYNC_OUTPUT_LVL                    ELOG_LVL_ASSERT
 /* buffer size for asynchronous output mode */
@@ -70,7 +74,7 @@
 #define ELOG_ASYNC_OUTPUT_USING_PTHREAD
 /*---------------------------------------------------------------------------*/
 /* enable buffered output mode */
-#define ELOG_BUF_OUTPUT_ENABLE
+//#define ELOG_BUF_OUTPUT_ENABLE     //缓存输出,适用于EEPROM保存
 /* buffer size for buffered output mode */
 #define ELOG_BUF_OUTPUT_BUF_SIZE                 (ELOG_LINE_BUF_SIZE * 10)
 

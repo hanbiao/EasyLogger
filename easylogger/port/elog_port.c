@@ -50,6 +50,7 @@ ElogErrCode elog_port_init(void) {
 void elog_port_output(const char *log, size_t size) {
     
     /* add your code here */
+	//这里添加输出驱动代码
     
 }
 

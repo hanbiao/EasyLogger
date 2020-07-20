@@ -45,6 +45,8 @@ extern void elog_port_output(const char *log, size_t size);
 extern void elog_output_lock(void);
 extern void elog_output_unlock(void);
 
+
+//只管往buffer里面写数据, buffer满了自己会输出
 /**
  * output buffered logs when buffer is full
  *
@@ -60,12 +62,13 @@ void elog_buf_output(const char *log, size_t size) {
     }
 
     while (true) {
+		//只有buffer满了才会开始输出
         if (buf_write_size + size > ELOG_BUF_OUTPUT_BUF_SIZE) {
-            write_size = ELOG_BUF_OUTPUT_BUF_SIZE - buf_write_size;
+            write_size = ELOG_BUF_OUTPUT_BUF_SIZE - buf_write_size; //写满剩余空间
             memcpy(log_buf + buf_write_size, log + write_index, write_size);
-            write_index += write_size;
+            write_index += write_size;  //剩下的待输出完成后从头开始放到buffer里面
             size -= write_size;
-            buf_write_size += write_size;
+            buf_write_size += write_size; //=ELOG_BUF_OUTPUT_BUF_SIZE
             /* output log */
             elog_port_output(log_buf, buf_write_size);
             /* reset write index */
@@ -78,6 +81,7 @@ void elog_buf_output(const char *log, size_t size) {
     }
 }
 
+//把buffer里的所有数据都一次性输出
 /**
  * flush all buffered logs to output device
  */

@@ -62,10 +62,14 @@
 #define ELOG_FILTER_TAG_LVL_MAX_NUM          4
 #endif
 
+
+
+
 #ifdef ELOG_COLOR_ENABLE
 /**
  * CSI(Control Sequence Introducer/Initiator) sign
  * more information on https://en.wikipedia.org/wiki/ANSI_escape_code
+ * ANSI的Escape序列屏幕控制码 https://blog.csdn.net/lano2088/article/details/51985563
  */
 #define CSI_START                      "\033["
 #define CSI_END                        "\033[0m"
@@ -93,6 +97,8 @@
 #define S_UNDERLINE                    "4m"
 #define S_BLINK                        "5m"
 #define S_NORMAL                       "22m"
+
+//定义各种错误等级显示的颜色
 /* output log default color definition: [front color] + [background color] + [show style] */
 #ifndef ELOG_COLOR_ASSERT
 #define ELOG_COLOR_ASSERT              (F_MAGENTA B_NULL S_NORMAL)
@@ -110,16 +116,17 @@
 #define ELOG_COLOR_DEBUG               (F_GREEN B_NULL S_NORMAL)
 #endif
 #ifndef ELOG_COLOR_VERBOSE
-#define ELOG_COLOR_VERBOSE             (F_BLUE B_NULL S_NORMAL)
+#define ELOG_COLOR_VERBOSE             (F_BLUE B_NULL S_NORMAL)    //字符串会自动连接, 这种定义方式可以参考
 #endif
 #endif /* ELOG_COLOR_ENABLE */
+
 
 /* EasyLogger object */
 static EasyLogger elog;
 /* every line log's buffer */
 static char log_buf[ELOG_LINE_BUF_SIZE] = { 0 };
 /* level output info */
-static const char *level_output_info[] = {
+static const char *level_output_info[] = {              //这个赋值的方式有点意思
         [ELOG_LVL_ASSERT]  = "A/",
         [ELOG_LVL_ERROR]   = "E/",
         [ELOG_LVL_WARN]    = "W/",
@@ -140,11 +147,16 @@ static const char *color_output_info[] = {
 };
 #endif /* ELOG_COLOR_ENABLE */
 
+
+
+
+
+
 static bool get_fmt_enabled(uint8_t level, size_t set);
 static void elog_set_filter_tag_lvl_default();
 
 /* EasyLogger assert hook */
-void (*elog_assert_hook)(const char* expr, const char* func, size_t line);
+void (*elog_assert_hook)(const char* expr, const char* func, size_t line);  //assert钩子函数
 
 extern void elog_port_output(const char *log, size_t size);
 extern void elog_port_output_lock(void);
@@ -156,7 +168,7 @@ extern void elog_port_output_unlock(void);
  * @return result
  */
 ElogErrCode elog_init(void) {
-    extern ElogErrCode elog_port_init(void);
+    extern ElogErrCode elog_port_init(void);   //这种方式符合MISRA规范吗
     extern ElogErrCode elog_async_init(void);
 
     ElogErrCode result = ELOG_NO_ERR;
@@ -446,6 +458,8 @@ uint8_t elog_get_filter_tag_lvl(const char *tag)
     return level;
 }
 
+
+//可以直接调用输出log的API接口, 但是会缺少一部分诊断信息
 /**
  * output RAW format log
  *
@@ -494,6 +508,8 @@ void elog_raw(const char *format, ...) {
     va_end(args);
 }
 
+
+//给elog API调用的输出接口, 输出log的信息更加丰富
 /**
  * output the log
  *
@@ -524,12 +540,17 @@ void elog_output(uint8_t level, const char *tag, const char *file, const char *f
     if (!elog.output_enabled) {
         return;
     }
+
+	
     /* level filter */
     if (level > elog.filter.level || level > elog_get_filter_tag_lvl(tag)) {
         return;
     } else if (!strstr(tag, elog.filter.tag)) { /* tag filter */
         return;
     }
+
+
+	
     /* args point to the first variable parameter */
     va_start(args, format);
     /* lock output */
@@ -592,14 +613,14 @@ void elog_output(uint8_t level, const char *tag, const char *file, const char *f
                 log_len += elog_strcpy(log_len, log_buf + log_len, ":");
             }
         }
-        /* package process info */
+        /* package function info */
         if (get_fmt_enabled(level, ELOG_FMT_FUNC)) {
             log_len += elog_strcpy(log_len, log_buf + log_len, func);
             if (get_fmt_enabled(level, ELOG_FMT_LINE)) {
                 log_len += elog_strcpy(log_len, log_buf + log_len, ":");
             }
         }
-        /* package thread info */
+        /* package line info */
         if (get_fmt_enabled(level, ELOG_FMT_LINE)) {
             snprintf(line_num, ELOG_LINE_NUM_MAX_LEN, "%ld", line);
             log_len += elog_strcpy(log_len, log_buf + log_len, line_num);
@@ -607,9 +628,22 @@ void elog_output(uint8_t level, const char *tag, const char *file, const char *f
         log_len += elog_strcpy(log_len, log_buf + log_len, ")");
     }
     /* package other log data to buffer. '\0' must be added in the end by vsnprintf. */
-    fmt_result = vsnprintf(log_buf + log_len, ELOG_LINE_BUF_SIZE - log_len, format, args);
+	//Write formatted text to a string with truncation using variable argument context
+    fmt_result = vsnprintf(log_buf + log_len, ELOG_LINE_BUF_SIZE - log_len, format, args);  //只会添加最多N个字符，超出会被丢弃, 自动添加null字符,返回实际添加的字符个数，不包括null, 只有返回值非负并且小于N，格式化才有效
+	//Write formatted text to a string using variable argument context
+	/* fmt_result = vsprintf(log_buf + log_len, format, args); */ //所有数据都会被添加在*s后面，返回添加的字符个数，不包括null
+	//Write formatted text to standard output using variable argument context
+	/*fmt_result = vprintf(format, args); */ //通过标准输出来输出所有格式化后的数据, 返回实际输出的字符个数，错误返回负数
+
+	//上面三个函数接口用于可变参数调用, 下面三个对应的接口用于固定参数调用
+	/*
+		int  printf(const char *format, ... );
+		int  sprintf(char *s, const char *format, ... );
+		int  snfprintf(char *s, size_t n, const char *format, ... );
+	*/
 
     va_end(args);
+
     /* calculate log length */
     if ((log_len + fmt_result <= ELOG_LINE_BUF_SIZE) && (fmt_result > -1)) {
         log_len += fmt_result;
@@ -632,6 +666,8 @@ void elog_output(uint8_t level, const char *tag, const char *file, const char *f
         /* reserve some space for newline sign */
         log_len -= newline_len;
     }
+
+	
     /* keyword filter */
     if (elog.filter.keyword[0] != '\0') {
         /* add string end sign */
@@ -693,8 +729,10 @@ static bool get_fmt_enabled(uint8_t level, size_t set) {
  */
 void elog_output_lock_enabled(bool enabled) {
     elog.output_lock_enabled = enabled;
+	
     /* it will re-lock or re-unlock before output lock enable */
-    if (elog.output_lock_enabled) {
+    if (elog.output_lock_enabled) 
+	{
         if (!elog.output_is_locked_before_disable && elog.output_is_locked_before_enable) {
             /* the output lock is unlocked before disable, and the lock will unlocking after enable */
             elog_port_output_lock();

@@ -91,6 +91,7 @@ extern void elog_port_output(const char *log, size_t size);
 extern void elog_output_lock(void);
 extern void elog_output_unlock(void);
 
+//获取使用的buffer长度
 /**
  * asynchronous output ring buffer used size
  *
@@ -110,6 +111,7 @@ static size_t elog_async_get_buf_used(void) {
     }
 }
 
+//获取剩余buffer大小
 /**
  * asynchronous output ring buffer remain space
  *
@@ -131,30 +133,32 @@ static size_t async_put_log(const char *log, size_t size) {
     size_t space = 0;
 
     space = async_get_buf_space();
-    /* no space */
-    if (!space) {
-        size = 0;
-        goto __exit;
-    }
-    /* drop some log */
-    if (space <= size) {
-        size = space;
-        buf_is_full = true;
-    }
 
-    if (write_index + size < OUTPUT_BUF_SIZE) {
-        memcpy(log_buf + write_index, log, size);
-        write_index += size;
-    } else {
-        memcpy(log_buf + write_index, log, OUTPUT_BUF_SIZE - write_index);
-        memcpy(log_buf, log + OUTPUT_BUF_SIZE - write_index,
-                size - (OUTPUT_BUF_SIZE - write_index));
-        write_index += size - OUTPUT_BUF_SIZE;
-    }
+	do {
+		 /* no space */
+	    if (!space) {
+	        size = 0;
+	        break;
+	    }
+		/* drop some log */
+	    if (space <= size) {
+	        size = space;
+	        buf_is_full = true;
+	    }
 
-    buf_is_empty = false;
+	    if (write_index + size < OUTPUT_BUF_SIZE) {
+	        memcpy(log_buf + write_index, log, size);
+	        write_index += size;
+	    } else {
+	        memcpy(log_buf + write_index, log, OUTPUT_BUF_SIZE - write_index);  //放满为止,实际上buffer大小已经剪裁过了, 不会出现大于的情况
+	        memcpy(log_buf, log + OUTPUT_BUF_SIZE - write_index,
+	                size - (OUTPUT_BUF_SIZE - write_index));  //这里是处理大于buffer的情况,从buffer头开始放
+	        write_index += size - OUTPUT_BUF_SIZE;            //index从头开始计数
+	    }
 
-__exit:
+	    buf_is_empty = false;
+		
+	}while(0);
 
     return size;
 }
@@ -224,30 +228,33 @@ size_t elog_async_get_log(char *log, size_t size) {
     /* lock output */
     elog_output_lock();
     used = elog_async_get_buf_used();
-    /* no log */
-    if (!used || !size) {
-        size = 0;
-        goto __exit;
-    }
-    /* less log */
-    if (used <= size) {
-        size = used;
-        buf_is_empty = true;
-    }
 
-    if (read_index + size < OUTPUT_BUF_SIZE) {
-        memcpy(log, log_buf + read_index, size);
-        read_index += size;
-    } else {
-        memcpy(log, log_buf + read_index, OUTPUT_BUF_SIZE - read_index);
-        memcpy(log + OUTPUT_BUF_SIZE - read_index, log_buf,
-                size - (OUTPUT_BUF_SIZE - read_index));
-        read_index += size - OUTPUT_BUF_SIZE;
-    }
+	do {
+		/* no log */
+	    if (!used || !size) {
+	        size = 0;
+	        break;
+	    }
+	    /* less log */
+	    if (used <= size) {
+	        size = used;
+	        buf_is_empty = true;
+	    }
 
-    buf_is_full = false;
+	    if (read_index + size < OUTPUT_BUF_SIZE) {
+	        memcpy(log, log_buf + read_index, size);
+	        read_index += size;
+	    } else {
+	        memcpy(log, log_buf + read_index, OUTPUT_BUF_SIZE - read_index);
+	        memcpy(log + OUTPUT_BUF_SIZE - read_index, log_buf,
+	                size - (OUTPUT_BUF_SIZE - read_index));  //ring buffer轮转, 从头开始取数据放到输出buffer中
+	        read_index += size - OUTPUT_BUF_SIZE;
+	    }
 
-__exit:
+	    buf_is_full = false;
+
+	}while(0);
+
     /* lock output */
     elog_output_unlock();
     return size;
